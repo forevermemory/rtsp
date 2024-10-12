@@ -1,0 +1,70 @@
+OPTIONS rtsp://192.168.120.177:8554/edge/541021d8-56b4-44be-9d7e-438e220058bd/mark RTSP/1.0
+CSeq: 2
+User-Agent: LibVLC/3.0.8 (LIVE555 Streaming Media v2016.11.28)
+
+
+RTSP/1.0 200 OK
+CSeq: 2
+Public: DESCRIBE, ANNOUNCE, SETUP, PLAY, RECORD, PAUSE, GET_PARAMETER, TEARDOWN
+Server: gortsplib
+
+
+DESCRIBE rtsp://192.168.120.177:8554/edge/541021d8-56b4-44be-9d7e-438e220058bd/mark RTSP/1.0
+CSeq: 3
+User-Agent: LibVLC/3.0.8 (LIVE555 Streaming Media v2016.11.28)
+Accept: application/sdp
+
+
+RTSP/1.0 200 OK
+CSeq: 3
+Content-Base: rtsp://192.168.120.177:8554/edge/541021d8-56b4-44be-9d7e-438e220058bd/mark/
+Content-Length: 324
+Content-Type: application/sdp
+Server: gortsplib
+
+v=0
+o=- 0 0 IN IP4 127.0.0.1
+s= 
+c=IN IP4 0.0.0.0
+t=0 0
+m=video 0 RTP/AVP 96
+a=control:rtsp://192.168.120.177:8554/edge/541021d8-56b4-44be-9d7e-438e220058bd/mark/trackID=0
+a=rtpmap:96 H264/90000
+a=fmtp:96 packetization-mode=1; profile-level-id=42C01F; sprop-parameter-sets=Z0LAH9oDwFuhAAADAAEAAAMAMo8YMqA=,aM48gA==
+
+SETUP rtsp://192.168.120.177:8554/edge/541021d8-56b4-44be-9d7e-438e220058bd/mark/trackID=0 RTSP/1.0
+CSeq: 4
+User-Agent: LibVLC/3.0.8 (LIVE555 Streaming Media v2016.11.28)
+Transport: RTP/AVP;unicast;client_port=52096-52097
+
+
+RTSP/1.0 200 OK
+CSeq: 4
+Server: gortsplib
+Session: 942a7f2c983b4778a7dd946dd0aafdb3;timeout=60
+Transport: RTP/AVP;unicast;client_port=52096-52097;server_port=8000-8001;ssrc=48C041CE
+
+
+PLAY rtsp://192.168.120.177:8554/edge/541021d8-56b4-44be-9d7e-438e220058bd/mark/ RTSP/1.0
+CSeq: 5
+User-Agent: LibVLC/3.0.8 (LIVE555 Streaming Media v2016.11.28)
+Session: 942a7f2c983b4778a7dd946dd0aafdb3
+Range: npt=0.000-
+
+
+RTSP/1.0 200 OK
+CSeq: 5
+RTP-Info: url=rtsp://192.168.120.177:8554/edge/541021d8-56b4-44be-9d7e-438e220058bd/mark/trackID=0;seq=48895;rtptime=3447822738
+Server: gortsplib
+Session: 942a7f2c983b4778a7dd946dd0aafdb3;timeout=60
+
+
+TEARDOWN rtsp://192.168.120.177:8554/edge/541021d8-56b4-44be-9d7e-438e220058bd/mark/ RTSP/1.0
+CSeq: 6
+User-Agent: LibVLC/3.0.8 (LIVE555 Streaming Media v2016.11.28)
+Session: 942a7f2c983b4778a7dd946dd0aafdb3
+
+
+RTSP/1.0 200 OK
+CSeq: 6
+Server: gortsplib
