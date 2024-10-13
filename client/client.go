@@ -1,7 +1,9 @@
 package client
 
 import (
+	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 	"rtsp/rtp"
 	"strconv"
@@ -21,17 +23,9 @@ type RtspClient struct {
 	heartbeatPrev time.Time
 
 	// datas
-	packetCache []byte
-	packets     chan *RtpPacket
-}
-
-type RtpPacket struct {
-	Buff  []byte
-	Index int
-	Size  int
-
-	RtpHeader  *rtp.RtpHeader
-	RtpPayload []byte
+	packetSize  int
+	packetCache []byte // 1M
+	packets     chan *rtp.RtpPacket
 }
 
 func NewRtspClient(addr string) (*RtspClient, error) {
@@ -52,8 +46,9 @@ func NewRtspClient(addr string) (*RtspClient, error) {
 		heartbeatPrev: time.Now(),
 		heartbeat:     0,
 
-		packetCache: make([]byte, 0),
-		packets:     make(chan *RtpPacket, 0x1000),
+		packetSize:  0,
+		packetCache: make([]byte, 1024000),
+		packets:     make(chan *rtp.RtpPacket, 0x1000),
 	}
 
 	r.start()
@@ -75,7 +70,7 @@ func NewRtspClient(addr string) (*RtspClient, error) {
 }
 
 func (r *RtspClient) parseRtpPacket() {
-	var pkt *RtpPacket
+	var pkt *rtp.RtpPacket
 
 	for {
 		select {
@@ -96,63 +91,63 @@ func (r *RtspClient) parseRtpPacket() {
 
 func (r *RtspClient) recv() {
 
-	var buff = make([]byte, 10240)
 	var n int
 	var err error
 	var recvIndex int = 0
+	var header = make([]byte, 4)
+	var size uint16 = 0
 
 	for {
-		n, err = r.conn.Read(buff)
-		fmt.Printf("read err:%v, size:%d,data; %02x %02x %02x %02x %02x %02x %02x %02x \n", err, n,
-			buff[0], buff[1], buff[2], buff[3], buff[4], buff[5], buff[6], buff[7])
-		if err != nil {
+		// first read rtp packet header
+		n, err = r.conn.Read(header)
+		// fmt.Printf("read err:%v, size:%d,data; %02x %02x %02x %02x %02x %02x %02x %02x \n", err, n,
+		// 	buff[0], buff[1], buff[2], buff[3], buff[4], buff[5], buff[6], buff[7])
+		if err != nil || n == 0 {
+			fmt.Println("rtsp client read header err:", err)
 			time.Sleep(time.Second)
 			continue
 		}
 
-		// // heartbeat response package
-		// // 52 54 53 50 2f 31  RTSP
-		// if buff[0] == 0x52 && buff[1] == 0x54 && buff[2] == 0x53 && buff[3] == 0x50 {
-		// 	fmt.Println(string(buff[:n]))
-		// 	continue
-		// }
-
 		// Magic:0x24  1byte
 		// Channel:0   1byte
 		// Size:       2byte
-
-		// it's a new packet
-		if buff[0] == 0x24 {
-			if len(r.packetCache) > 0 {
-				pkt := new(RtpPacket)
-				pkt.Buff = make([]byte, 0)
-				pkt.Buff = append(pkt.Buff, r.packetCache...)
-				pkt.Size = len(r.packetCache)
-				pkt.Index = recvIndex
-				recvIndex += 1
-
-				// parse header
-				var rtpHeader = rtp.ParseRtpHeader(pkt.Buff[4:])
-				fmt.Printf("size:%d, V:%d, P:%d, X:%d, CC:%d, M:%d, PT:%d, SN:%d, ts:%d ssrc:%d\n",
-					pkt.Size,
-					rtpHeader.V, rtpHeader.P, rtpHeader.X, rtpHeader.CC,
-					rtpHeader.M, rtpHeader.PT, rtpHeader.SN, rtpHeader.Timestamp,
-					rtpHeader.SSRC)
-
-				// select {
-				// case r.packets <- pkt:
-				// default:
-				// }
-			}
-
-			r.packetCache = make([]byte, 0)
-			r.packetCache = append(r.packetCache, buff[0:n]...)
-		} else {
-			// last packet next data
-			r.packetCache = append(r.packetCache, buff[0:n]...)
+		if header[0] != 0x24 {
+			fmt.Println("unknown packet:", string(header))
+			continue
 		}
 
+		size = binary.BigEndian.Uint16(header[2:4])
+		var buff = make([]byte, size)
+		n, err = io.ReadFull(r.conn, buff)
+		if err != nil || n == 0 {
+			fmt.Println("rtsp client read data err:", err)
+			time.Sleep(time.Second)
+			continue
+		}
+
+		// put pkt to channel
+		pkt := new(rtp.RtpPacket)
+		if err := pkt.Unmarshal(buff); err != nil {
+			fmt.Println("pkt Unmarshal buffer err:", err)
+			continue
+		}
+		pkt.Index = recvIndex
+		recvIndex += 1
+
+		// if rtpHeader.CC > 0 {
+		// 	// var a = *(*[]byte)(unsafe.Pointer(&rtpHeader.CSRC))
+		// 	// var b = byte(a)
+		// }
+
+		var rtpHeader = pkt.RtpHeader
+		fmt.Printf("size:%d, size:%d, V:%d, P:%d, X:%d, CC:%d, M:%d, PT:%d, SN:%d, ts:%d ssrc:%d\n",
+			size, pkt.Size,
+			rtpHeader.V, rtpHeader.P, rtpHeader.X, rtpHeader.CC,
+			rtpHeader.M, rtpHeader.PT, rtpHeader.SN, rtpHeader.Timestamp,
+			rtpHeader.SSRC)
+
 	}
+
 }
 
 func (r *RtspClient) start() {
